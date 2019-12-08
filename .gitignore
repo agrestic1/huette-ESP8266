@@ -1,2 +1,3 @@
 ESP8266_WebSocket/privates.h
 BasicExample/BasicExample.ino
+ESp8266_socketIO/privates.h
