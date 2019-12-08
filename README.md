@@ -9,25 +9,23 @@
 - [Install](#install)
 
 ## Requirements <a name = "requirements"></a>
-In Adruino IDE add Packages:
-SocketIoClient by Vincent Wyszynski, see also https://github.com/Links2004/arduinoWebSockets
-WebSockets by Markus Sattler, see also https://github.com/timum-viw/socket.io-client
-WiFiManager by tzapi, see also https://github.com/tzapu/WiFiManager
+In Adruino IDE add Packages:  
+SocketIoClient by Vincent Wyszynski, see also https://github.com/timum-viw/socket.io-client  
+WiFiManager by tzapi, see also https://github.com/tzapu/WiFiManager  
 
-Add ESP8266 Board:
-In Preferences you need to add additional Boards Manager source: https://arduino.esp8266.com/stable/package_esp8266com_index.json
-Then, in Board Manager add esp8266 by ESP8266 Community
+Add ESP8266 Board:  
+In Preferences you need to add additional Boards Manager source: https://arduino.esp8266.com/stable/package_esp8266com_index.json  
+Then, in Board Manager add esp8266 by ESP8266 Community  
 
-## Install <a name = "install"></a>
-
-Create a file "privates.h" that conrains the WiFi SSID and PW of your server
-content of privates.h:
-const char* ssid = "yourSSID";
-const char* password = "yourPW";
-
-Adjust staticIP, gateway and subnet according to your network or
-comment the following line to use DHCP instead of static IP:
-WiFi.config(staticIP, gateway, subnet); 
+## Install <a name = "install"></a>  
+Create a file "privates.h" that conrains the WiFi SSID and PW of your server  
+content of privates.h:  
+const char* ssid = "yourSSID";  
+const char* password = "yourPW";  
+ 
+Adjust staticIP, gateway and subnet according to your network or  
+comment the following line to use DHCP instead of static IP:  
+WiFi.config(staticIP, gateway, subnet);  
 
 ### 💡 The SocketIoClient library uses lstdc++
 To compile you have to add a reference to the linker. 
