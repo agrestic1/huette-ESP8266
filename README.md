@@ -1,5 +1,3 @@
-# Installation
-
 <h1 align="center">huette-ESP8266</h1>
 
 <p align = "center">NodeJS server running huette-raspberry communicates with ESP8266 to control it's LEDs</p>
