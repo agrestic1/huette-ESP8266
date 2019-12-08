@@ -15,6 +15,7 @@ IPAddress gateway(192, 168, 178, 1); // Your Gateway
 IPAddress subnet(255, 255, 255, 0);
 
 void event(const char * payload, size_t lenght) {
+        Serial.println("event");
         String text = String((char *) &payload[0]);
         if (text == "LED1") {
           digitalWrite(LED_BUILTIN, LOW);
@@ -65,7 +66,7 @@ void setup(void) {
   Serial.println(WiFi.localIP());
 
   const char* host = "192.168.178.69";
-  int port = 8080;
+  int port = 8081;
   Socket.begin(host, port);
   Socket.on("connect", sendType);
   Socket.on("event", event);
