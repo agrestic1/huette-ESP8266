@@ -20,15 +20,20 @@ SocketIoClient Socket;
  #define DEBUG_PRINTLN(x)
 #endif 
 
+#define PWM_RANGE 100 // range for analogwrite
 #define PWM_PIN 13 // Pin to Output, 13 is LED_BUILTIN
-#define EEPROM_size 1
+#define EEPROM_size 1 // [byte] Set size of EEPROM (up to 512)
+#define EEPROM_adr_bright 0x01 // EEPROM Adress of brightness
+
+#define HOST "192.168.178.45" // Webservers IP
 // Globals
-const int EEPROM_adr_bright = 255; // EEPROM Adress of brightness
-int bright = 255; // Brightness, initialize to off (=255)
+int bright = 0; // Brightness, initialize to off (=255)
 
 IPAddress staticIP(192, 168, 178, 22); // ESP8266's static IP adress
-IPAddress gateway(192, 168, 178, 1); // Your Gateway
+IPAddress gateway(192, 168, 178, 1); // Your Gateway (Router)
 IPAddress subnet(255, 255, 255, 0); // Your Subnet mask
+
+int port = 8081;
 
 // TODO: change to JSON-based communication
 void event(const char * payload, size_t lenght) {
@@ -44,14 +49,14 @@ void event(const char * payload, size_t lenght) {
   if(text.startsWith("D")){
       String xVal=(text.substring(text.indexOf("D")+1,text.length())); // remove D from string
       bright = xVal.toInt();   
-      if (bright > 255){ // respect range
-        DEBUG_PRINTLN("Brightness value reduced from " + xVal + " to 255");
-        bright = 255;
+      if (bright > PWM_RANGE){ // respect range
+        DEBUG_PRINTLN("Brightness value reduced from " + xVal + " to " + PWM_RANGE);
+        bright = PWM_RANGE;
       } else if (bright < 0){ // respect range
         DEBUG_PRINTLN("Brightness value increased from " + xVal + " to 0");
         bright = 0;
       }
-      bright = 255 - bright; // Range from 0 (off) to 255 (full brightness) instad of other way round
+      // bright = 100 - bright; // Range from 0 (off) to PWM_RANGE (full brightness) instad of other way round
       EEPROM_update_write();
       LAMP_update(); 
       }
@@ -104,7 +109,7 @@ void EEPROM_clear_all(){
 
 void setup(void) {
   pinMode(PWM_PIN, OUTPUT);
-  analogWriteRange(255); // use 8 bit range instead of 10 bit so it's easier to handle
+  analogWriteRange(PWM_RANGE); // use 8 bit range instead of 10 bit so it's easier to handle
   digitalWrite(PWM_PIN, LOW);
   Serial.begin(115200);
   EEPROM.begin(EEPROM_size); // [byte] Set size of EEPROM up to 512
@@ -125,10 +130,7 @@ void setup(void) {
   DEBUG_PRINT("IP address: ");
   DEBUG_PRINTLN(WiFi.localIP());
 
-
-  const char* host = "192.168.178.69";
-  int port = 8081;
-  Socket.begin(host, port);
+  Socket.begin(HOST, port);
   Socket.on("connect", sendType);
   Socket.on("event", event);
 }

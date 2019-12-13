@@ -8,10 +8,10 @@
 
 ## Requirements <a name = "requirements"></a>
 In Adruino IDE add Packages:  
-WebSockets Package by Markus Sattler
+WebSockets Package by Markus Sattler  
 SocketIoClient by Vincent Wyszynski, see also https://github.com/timum-viw/socket.io-client  
 // WiFiManager by tzapi, see also https://github.com/tzapu/WiFiManager  
-ArduinoJsnon package by Benoit Blanchon, see also https://arduinojson.org/
+ArduinoJsnon package by Benoit Blanchon, see also https://arduinojson.org/  
 
 Add ESP8266 Board:  
 In Preferences you need to add additional Boards Manager source: https://arduino.esp8266.com/stable/package_esp8266com_index.json  
