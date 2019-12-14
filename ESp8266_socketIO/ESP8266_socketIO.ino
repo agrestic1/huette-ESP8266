@@ -1,127 +1,146 @@
-#include <Arduino.h>
+#include "typedefs.h"
+#include "config.h" // Configuration file, must be adjusted
+#include "privates.h" // conrains privat info like WiFi SSID and PW, must be adjusted
+#include "storrage_service.h"
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 //#include <ESP8266WebServer.h>
 #include <SocketIoClient.h> // requires SocketIoCleint package by Vincent Wyszynski and also WebSockets Package by Markus Sattler
-#include <EEPROM.h> // necessary to store and read values from Flash (virtual EEPORM)
-#include "privates.h" // conrains your WiFi SSID and PW, must be adjusted
+//#include <EEPROM.h> // necessary to store and read values from Flash (virtual EEPORM)
+#include <ArduinoJson.h> // requires ArduinoJson package by Benoit Blanchon
+#include <string.h>
 // content of privates.h:
 // const char* ssid = "yourSSID";
 // const char* password = "yourPW";
 
 SocketIoClient Socket;
-#define DEBUG // DEBUG Option prints all that happens to serial Monitor
+#ifndef DEBUG
+    #define DEBUG // DEBUG Option prints all that happens to serial Monitor
+    #ifdef DEBUG
+      #define DEBUG_PRINT(x)     Serial.print (x)
+      #define DEBUG_PRINTLN(x)  Serial.println (x)
+    #else
+      #define DEBUG_PRINT(x)
+      #define DEBUG_PRINTLN(x)
+    #endif 
+#endif
+#define DEFLED_BUILTIN // Route PWM to LED_BUILTIN instead PWM_PIN
+// #define SETUP // Writes content of json[] into EEPROM (Flashing does not wipe EEPROM)
 
-#ifdef DEBUG
- #define DEBUG_PRINT(x)     Serial.print (x)
- #define DEBUG_PRINTLN(x)  Serial.println (x)
-#else
- #define DEBUG_PRINT(x)
- #define DEBUG_PRINTLN(x)
-#endif 
 
 #define PWM_RANGE 100 // range for analogwrite
 #define PWM_PIN 13 // Pin to Output, 13 is LED_BUILTIN
-#define EEPROM_size 1 // [byte] Set size of EEPROM (up to 512)
-#define EEPROM_adr_bright 0x01 // EEPROM Adress of brightness
 
-#define HOST "192.168.178.45" // Webservers IP
 // Globals
-int bright = 0; // Brightness, initialize to off (=255)
+DataPacket_t states; // Initialize empty states struct
 
-IPAddress staticIP(192, 168, 178, 22); // ESP8266's static IP adress
-IPAddress gateway(192, 168, 178, 1); // Your Gateway (Router)
-IPAddress subnet(255, 255, 255, 0); // Your Subnet mask
+// JSON
+//char[], as shown here, enables the "zero-copy" mode. This mode uses
+char json[] = "{\"name\":\"Warmweiss LED Innen\",\"type\":\"Light\",\"on_state\":true,\"brightness\":10}"; // Excemple
 
-int port = 8081;
+StaticJsonDocument<1024> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap
+// DynamicJsonDocument doc(1024); // allocates memory on the stack, it can replace by StaticJsonDocument
 
-// TODO: change to JSON-based communication
-void event(const char * payload, size_t lenght) {
-  String text = String((char *) &payload[0]);
-  if (text == "LED1") {
-    LAMP_update();
-    DEBUG_PRINTLN("led just lit");
+// Set method changes states of this device
+void set(const char * payload, size_t lenght) {
+  DEBUG_PRINTLN(payload);
+  int option = 1; // Choose set option
+  DataPacket_t data;
+  deserialize(payload, &data, option); // Option 1 for "set"
+
+  states = data; // Sore it to global "states"
+  LAMP_update(); // Update output
+}
+
+void get(const char * payload, size_t lenght) {
+  return;
+}
+
+// ---------------- JSON -----------------------
+void deserialize(const char * json_obj, DataPacket_t* destination, int option){
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, json_obj);
+  // Test if parsing succeeds.
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
   }
-  if (text == "LED0") {
-    LAMP_update();
-    DEBUG_PRINTLN("led just lit");
-    }
-  if(text.startsWith("D")){
-      String xVal=(text.substring(text.indexOf("D")+1,text.length())); // remove D from string
-      bright = xVal.toInt();   
-      if (bright > PWM_RANGE){ // respect range
-        DEBUG_PRINTLN("Brightness value reduced from " + xVal + " to " + PWM_RANGE);
-        bright = PWM_RANGE;
-      } else if (bright < 0){ // respect range
-        DEBUG_PRINTLN("Brightness value increased from " + xVal + " to 0");
-        bright = 0;
-      }
-      // bright = 100 - bright; // Range from 0 (off) to PWM_RANGE (full brightness) instad of other way round
-      EEPROM_update_write();
-      LAMP_update(); 
-      }
+  switch(option){
+    case 1: // Set option was chosen
+      // if (*_id != NULL) *id = *_id;
+      if (doc.containsKey("name")) strcpy(destination->name, doc["name"]);
+      if (doc.containsKey("type"))  strcpy(destination->type, doc["type"]);
+      if (doc.containsKey("on_state"))  destination->on_state = doc["on_state"];
+      if (doc.containsKey("brightness"))  destination->brightness = doc["brightness"];
+      break;
+    case 2: // EEPROM option was chosen
+      if (doc.containsKey("name"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["name"]);
+      if (doc.containsKey("type"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["type"]);
+      if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["on_state"]);
+      if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_brightness,doc["brightness"]);
+      break;
+  }
 }
 
 void LAMP_update(){
-  analogWrite(PWM_PIN,bright); 
-  DEBUG_PRINTLN("Brightness changed to ");
-  DEBUG_PRINT(bright);
+    #ifdef DEFLED_BUILTIN
+      if (states.on_state){
+        analogWrite(LED_BUILTIN,PWM_RANGE-states.brightness); 
+        } else {
+          analogWrite(LED_BUILTIN,PWM_RANGE); 
+        }
+    #else
+      if (states.on_state){
+        analogWrite(PWM_PIN,states.brightness); 
+      } else {
+        analogWrite(PWM_PIN,0); 
+      }
+    #endif
+  DEBUG_PRINT("Brightness changed to ");
+  DEBUG_PRINTLN(states.brightness);
 }
 
-bool EEPROM_update_write() { // Writes all current values to EEPROM
-  bool success = false;
-  EEPROM.write(EEPROM_adr_bright, bright);
-  if (EEPROM.commit()) {
-    DEBUG_PRINTLN("EEPROM successfully committed");
-    success = true;
-  } else {
-    DEBUG_PRINTLN("ERROR! EEPROM commit failed");
-  }
-  return success;
+// ----------------- DEBUG -------------------
+void printState(){
+  DEBUG_PRINTLN(states.name);
+  DEBUG_PRINTLN(states.type);
+  DEBUG_PRINTLN(states.on_state?"True":"False");
+  DEBUG_PRINTLN(states.brightness);
 }
 
-bool EEPROM_update_read() { // Writes all values from EEPROM
-  bool success = false;
-  if (true){ // TODO: 
-    success = true;
-    DEBUG_PRINTLN("ERROR read succeeded");
-  } else {
-    DEBUG_PRINTLN("ERROR read failed.");
-  }
-  bright = EEPROM.read(EEPROM_adr_bright);
-  return success;
-}
-
-void sendType(const char * payload, size_t lenght){ // const char * payload, size_t leght necessary!
-  Socket.emit("jsonObject", "{\"Type\":\"LED\"}");
-}
-
-void EEPROM_clear_all(){
-  EEPROM.end();
-  EEPROM.begin(512);
-  // write a 0 to all 512 bytes of the EEPROM
-  for (int i = 0; i < 512; i++) {
-    EEPROM.write(i, 0);
-  }
-  EEPROM.end();
-  EEPROM.begin(EEPROM_size);
-}
-
+// --------------- SETUP -----------------
 void setup(void) {
+  // GPIO
   pinMode(PWM_PIN, OUTPUT);
   analogWriteRange(PWM_RANGE); // use 8 bit range instead of 10 bit so it's easier to handle
   digitalWrite(PWM_PIN, LOW);
+  // Serial
   Serial.begin(115200);
+  #ifdef DEBUG
+    while (!Serial){ // Wait for serial connection
+      digitalWrite(PWM_PIN, HIGH); // Fast blink LED
+      delay(100);
+      digitalWrite(PWM_PIN, LOW);
+      delay(100);
+    } 
+  #endif
+  // EEPROM
   EEPROM.begin(EEPROM_size); // [byte] Set size of EEPROM up to 512
-  EEPROM_update_read(); // update status from EEPROM
+  #ifdef SETUP
+    set(json,sizeof(json));
+    EEPROM_write_all(&states);
+  #endif
+  EEPROM_read_all(&states); // update status from EEPROM
   LAMP_update(); // Set lamp to status read from EEPROM
+  printState();
+  // TEST:
+  // deserialize(json,1);
+  // WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  WiFi.config(staticIP, gateway, subnet); // comment this line to use DHCP instead of static IP
   DEBUG_PRINTLN("");
-
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) {  // Wait for connection
     delay(500);
     DEBUG_PRINT(".");
   }
@@ -129,10 +148,14 @@ void setup(void) {
   DEBUG_PRINTLN(ssid);
   DEBUG_PRINT("IP address: ");
   DEBUG_PRINTLN(WiFi.localIP());
-
-  Socket.begin(HOST, port);
-  Socket.on("connect", sendType);
-  Socket.on("event", event);
+  // Socket
+  Socket.begin(HOST, PORT); // Connected to Device Socket using config from config.h
+  // Subscriptions:
+  //Socket.on("connect", sendType); // Connected to server
+  // Socket.on("event", event); // "event" from excemple can be deleted
+  Socket.on("set", set); // set event changes states on this device
+  Socket.on("get", get); // set event emits states of this device
+  // TODO: catch unknown event
 }
 
 void loop(void) {
