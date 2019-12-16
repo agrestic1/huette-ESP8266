@@ -133,15 +133,15 @@ class DeviceData {
   public:
     DeviceData() {
       // Allocate 1 character for strings and initialize to zero ('\0')
-      // // No name
-      // this->data.name = (char*)calloc(sizeof(char));
-      // // No type
-      // this->data.type = (char*)calloc(sizeof(char));
-      // // Default OFF
-      // this->data.on_state = false;
-      // // 50% Brightness
-      // this->data.brightness = 50;
-      EEPROM_read_all(&this->data);
+      // No name
+      this->data.name = (char*)calloc(1, sizeof(char));
+      // No type
+      this->data.type = (char*)calloc(1, sizeof(char));
+      // Default OFF
+      this->data.on_state = false;
+      // 50% Brightness
+      this->data.brightness = 50;
+      // EEPROM_read_all(&this->data);
       updateOutput();
     };
 
@@ -201,14 +201,14 @@ class DeviceData {
       return 0;
     };
 
-    int Serialize(const JsonDocument& doc, char **jsonString) {
+    int Serialize(const JsonDocument& doc, char *jsonString) {
       // Computes the length of the minified JSON document that serializeJson() produces, excluding the null-terminator.
       // But we also want null termination so: + 1
       size_t len = measureJson(doc) + 1;
       // Reallocate memory for our JSON string buffer
-      *jsonString = (char*)realloc(jsonString, len * sizeof(char));
+      jsonString = (char*)realloc(jsonString, len * sizeof(char));
       // Serialize the JSON document
-      size_t count = serializeJson(doc, *jsonString, len);
+      size_t count = serializeJson(doc, jsonString, len);
       // Test if parsing succeeds.
       if (count == 0) {
         Serial.print(F("serializeJson() failed: "));
@@ -267,7 +267,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   StaticJsonDocument<MAX_JSON_SIZE> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap  
   if(commandBuffer == NULL) {
     // Error, we were unable to get the requested amount of memory :-(
-    Socket.emit("error", "Error in set. Memory allocation failed."); // Send error
+    Socket.emit("error", "{Error in set. Memory allocation failed.}"); // Send error
     return;
   }
   // Copy the payload to our buffer (using strncpy ensures we won't have a buffer overflow)
@@ -283,10 +283,11 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   // uint8_t option = 2; // Choose set option
   // DataPacket_t data; // Initialize empty data packet which will be filled
   // We intend to deserialize our JSON String to our global 'states' struct.. no need for local data packet
-  int success = states->Deserialize(doc, ((const char*)&commandBuffer)); // Option 2 for "set"
+  int success = states->Deserialize(doc, (const char*)commandBuffer); // Option 2 for "set"
   if (success < 0) {
-    Socket.emit("error", "Error deserializing JSON string"); // Send error
+    Socket.emit("error", "{Error deserializing JSON string.}"); // Send error
   } else {
+    DEBUG_PRINTLN("Deserialization succeeded");
     // Todo: we need a serialize function that is able to generate a 'emittable' JSON String from our struct 'data'
     // The following will probably not work, would have to move every single property...
     // states = data; // Sore it to global "states"
@@ -294,14 +295,16 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
     // If deserialization worked, let's head to parsing our JSON document now..
     success = states->Parse(doc, option);
     if (success < 0) {
-      Socket.emit("error", "Error parsing data"); // Send error
+      Socket.emit("error", "{Error parsing data.}"); // Send error
     } else {
+      DEBUG_PRINTLN("Parsing succeeded");
       // At this point we should have a beautiful JSON Document already containing our response
       // Serialize our response (produces JSON String)
-      success = states->Serialize(doc, &commandBuffer);
+      success = states->Serialize(doc, commandBuffer);
       if (success < 0) {
-        Socket.emit("error", "Error serializing JSON data"); // Send error
+        Socket.emit("error", "{Error serializing JSON data.}"); // Send error
       } else {
+        DEBUG_PRINTLN("Serialization succeeded");
         switch(option) {
           case COMMAND_GET:
             Socket.emit("get", commandBuffer);
@@ -312,7 +315,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
           case COMMAND_WRITE_EEPROM:
             Socket.emit("write_eeprom", commandBuffer);
           default:
-            Socket.emit("error", "Error: Unknown event");
+            Socket.emit("error", "{Error: Unknown event.}");
             break;
         }
       }
@@ -446,15 +449,15 @@ void setup(void) {
 
   // TEST:
   // deserialize(json,2);
-  get(json,sizeof(json));
+  // get(json,sizeof(json));
 
     // WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("Starting WiFi init");
   while (WiFi.status() != WL_CONNECTED) {  // Wait for connection
     delay(500);
-    DEBUG_PRINT(".");
+    DEBUG_PRINT("Waiting for connection..");
   }
   DEBUG_PRINT("Connected to ");
   DEBUG_PRINTLN(ssid);
