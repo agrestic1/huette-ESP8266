@@ -28,9 +28,7 @@
 #define MAX_JSON_SIZE 1024
 
 // #define SETUP // Writes content of json[] into EEPROM (Flashing does not wipe EEPROM)
-
-// Globals
-// DataPacket_t states; // Initialize empty states struct
+// char json[] = "{\"name\":\"Warmweiss LED Innen2\",\"type\":\"Light\",\"on_state\":true,\"brightness\":10}"; // Excemple
 
 // Our new Device class
 class DeviceData {
@@ -145,7 +143,7 @@ class DeviceData {
       // Todo: Manage EEPROM
 
       // EEPROM
-      EEPROM.begin(EEPROM_size); // [byte] Set size of EEPROM up to 512
+      // EEPROM.begin(EEPROM_size); // [byte] Set size of EEPROM up to 512
       // EEPROM_read_all(&this->data);
 
       updateOutput();
@@ -221,7 +219,7 @@ class DeviceData {
       if (count == 0) {
         // Serial.print(F("serializeJson() failed: "));
         // Serial.println("No bytes written");
-        DEBUG_PRINT("serializeJson() failed: "));
+        DEBUG_PRINT("serializeJson() failed: ");
         DEBUG_PRINTLN("No bytes written");
 
         // Todo: Send error message over to backend using Socket.emit
@@ -244,17 +242,6 @@ class DeviceData {
 // global singleton instance of our Device
 DeviceData *states;
 SocketIoClient Socket;
-
-// JSON
-//char[], as shown here, enables the "zero-copy" mode. This mode uses
-char json[] = "{\"name\":\"Warmweiss LED Innen2\",\"type\":\"Light\",\"on_state\":true,\"brightness\":10}"; // Excemple
-char test_get_json[] = "{\"name\",\"type\",\"on_state\",\"brightness\"}"; // Excemple
-
-// StaticJsonDocument<255> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap
-// DynamicJsonDocument doc(1023); // allocates memory on the stack, it can replace by StaticJsonDocument
-
-// Prototypes
-// int deserialize(const char * json_obj, DataPacket_t* destination, int option, char* json_obj_out = "{}"); // Protoype to make 
 
 void get(const char * payload, size_t length) {
   handleCommand(payload, length, COMMAND_GET);
@@ -343,7 +330,6 @@ void setupSerial() {
 // Serial
 #ifdef DEBUG
   Serial.begin(115200);
-  #ifdef DEBUG
     while (!Serial){ // Wait for serial connection
       digitalWrite(PWM_PIN, HIGH); // Fast blink LED
       delay(100);
@@ -382,11 +368,11 @@ void setupWifi() {
 
 // --------------- SETUP -----------------
 void setup(void) {
+  states = new DeviceData();
+
   setupSerial();
   setupPeripherals();
   setupWifi();
-
-  states = new DeviceData();
 
   // Socket
   Socket.begin(HOST, PORT); // Connected to Device Socket using config from config.h
