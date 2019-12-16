@@ -234,6 +234,18 @@ char test_get_json[] = "{\"name\",\"type\",\"on_state\",\"brightness\"}"; // Exc
 // Prototypes
 // int deserialize(const char * json_obj, DataPacket_t* destination, int option, char* json_obj_out = "{}"); // Protoype to make 
 
+void get(const char * payload, size_t length) {
+  handleCommand(payload, length, COMMAND_GET);
+}
+
+void set(const char * payload, size_t length) {
+  handleCommand(payload, length, COMMAND_SET);
+}
+
+void write_eeprom(const char * payload, size_t length) {
+  handleCommand(payload, length, COMMAND_WRITE_EEPROM);
+}
+
 // handleCommand takes care of set, get, and eeprom_write commands now
 void handleCommand(const char * payload, size_t length, CommandOptions option) {
   // Since our received payload may be overridden by a subsequent command, we have to store it in a fresh buffer here!
@@ -431,7 +443,7 @@ void setup(void) {
   //Socket.on("connect", sendType); // Connected to server
   Socket.on("get", get); // get event emits states of this device
   Socket.on("set", set); // set event changes states on this device
-  // Socket.on("setEEPROM", setEEPROM); // writes new default states into EEPROM
+  Socket.on("setEEPROM", write_eeprom); // writes new default states into EEPROM
   // TODO: catch unknown event
 }
 
