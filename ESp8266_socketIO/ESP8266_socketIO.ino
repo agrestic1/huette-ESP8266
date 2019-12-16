@@ -29,6 +29,7 @@ int bright = 255; // Brightness, initialize to off (=255)
 IPAddress staticIP(192, 168, 178, 22); // ESP8266's static IP adress
 IPAddress gateway(192, 168, 178, 1); // Your Gateway
 IPAddress subnet(255, 255, 255, 0); // Your Subnet mask
+const char* host = "192.168.178.26";
 
 // TODO: change to JSON-based communication
 void event(const char * payload, size_t lenght) {
@@ -125,8 +126,6 @@ void setup(void) {
   DEBUG_PRINT("IP address: ");
   DEBUG_PRINTLN(WiFi.localIP());
 
-
-  const char* host = "192.168.178.69";
   int port = 8081;
   Socket.begin(host, port);
   Socket.on("connect", sendType);
