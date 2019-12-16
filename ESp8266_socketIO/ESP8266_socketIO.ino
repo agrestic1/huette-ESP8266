@@ -35,7 +35,7 @@
 // Our new Device class
 class DeviceData {
   private:
-    const char *properties[4] = new (const char*)[ "name", "type", "on_state", "brightness"];
+    const char *properties[4] = { "name", "type", "on_state", "brightness" };
     DataPacket_t data;
 
     void updateOutput(void) {
