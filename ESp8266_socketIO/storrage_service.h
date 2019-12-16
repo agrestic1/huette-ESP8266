@@ -1,13 +1,13 @@
 #include <EEPROM.h>
 #include <Arduino.h>  // for type definitions
 
-#define DEBUG // DEBUG Option prints all that happens to serial Monitor
-#ifdef DEBUG
- #define DEBUG_PRINT(x)     Serial.print (x)
- #define DEBUG_PRINTLN(x)  Serial.println (x)
+#define DEBUG_memory // DEBUG Option prints all that happens to serial Monitor
+#ifdef DEBUG_memory
+ #define DEBUG_memory_PRINT(x)     Serial.print (x)
+ #define DEBUG_memory_PRINTLN(x)  Serial.println (x)
 #else
- #define DEBUG_PRINT(x)
- #define DEBUG_PRINTLN(x)
+ #define DEBUG_memory_PRINT(x)
+ #define DEBUG_memory_PRINTLN(x)
 #endif 
 
 #define EEPROM_size 66 // [byte] Set size of EEPROM (up to 512)
@@ -24,9 +24,9 @@ template <class T> int EEPROM_writeAnything(int ee, const T& value)
     for (i = 0; i < sizeof(value); i++)
           EEPROM.write(ee++, *p++);
     if (EEPROM.commit()) {
-    DEBUG_PRINTLN("EEPROM successfully committed");
+    DEBUG_memory_PRINTLN("EEPROM successfully committed");
   } else {
-    DEBUG_PRINTLN("ERROR! EEPROM commit failed");
+    DEBUG_memory_PRINTLN("ERROR! EEPROM commit failed");
   }
     return i;
 }
@@ -35,10 +35,10 @@ template <class T> int EEPROM_readAnything(int ee, T& value)
 {
     byte* p = (byte*)(void*)&value;
     unsigned int i;
-    DEBUG_PRINT("Reading EEPROM from Adress: ");
-    DEBUG_PRINT(ee);
-    DEBUG_PRINT(" to ");
-    DEBUG_PRINTLN(ee+sizeof(value)-1);
+    DEBUG_memory_PRINT("Reading EEPROM from Adress: ");
+    DEBUG_memory_PRINT(ee);
+    DEBUG_memory_PRINT(" to ");
+    DEBUG_memory_PRINTLN(ee+sizeof(value)-1);
     for (i = 0; i < sizeof(value); i++)
           *p++ = EEPROM.read(ee++);
     return i;
@@ -63,12 +63,12 @@ void EEPROM_write_all(DataPacket_t* states){
 }
 
 void EEPROM_read_all(DataPacket_t* states){
-  DEBUG_PRINT("\nName: ");
+  DEBUG_memory_PRINT("\nName: ");
   EEPROM_readAnything(EEPROM_adr_name,states->name);
-  DEBUG_PRINT("Type: ");
+  DEBUG_memory_PRINT("Type: ");
   EEPROM_readAnything(EEPROM_adr_type,states->type);
-  DEBUG_PRINT("on_state: ");
+  DEBUG_memory_PRINT("on_state: ");
   EEPROM_readAnything(EEPROM_adr_on_state,states->on_state);
-  DEBUG_PRINT("brightness: ");
+  DEBUG_memory_PRINT("brightness: ");
   EEPROM_readAnything(EEPROM_adr_brightness,states->brightness);
 }
