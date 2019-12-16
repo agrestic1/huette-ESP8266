@@ -253,6 +253,7 @@ void set(const char * payload, size_t length) {
 
 void publish(const char* payload, size_t length) {
   // Todo: build JSON string from current setup and emit over socket
+  Socket.emit("publish", "{\"name\": \"LED innen\", \"type\": \"Light\"}");
 }
 
 void write_eeprom(const char * payload, size_t length) {
