@@ -27,11 +27,6 @@
 
 // #define SETUP // Writes content of json[] into EEPROM (Flashing does not wipe EEPROM)
 
-// Output
-#define DEFLED_BUILTIN // Route PWM to LED_BUILTIN instead PWM_PIN
-#define PWM_RANGE 100 // range for analogwrite
-#define PWM_PIN 13 // Pin to Output, ATTENTION: not used ifdef DEFLED_BUILTIN
-
 // Globals
 DataPacket_t states; // Initialize empty states struct
 SocketIoClient Socket;
@@ -41,7 +36,7 @@ SocketIoClient Socket;
 char json[] = "{\"name\":\"Warmweiss LED Innen2\",\"type\":\"Light\",\"on_state\":true,\"brightness\":10}"; // Excemple
 char test_get_json[] = "{\"name\",\"type\",\"on_state\",\"brightness\"}"; // Excemple
 
-StaticJsonDocument<1023> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap
+StaticJsonDocument<255> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap
 // DynamicJsonDocument doc(1023); // allocates memory on the stack, it can replace by StaticJsonDocument
 
 // Prototypes
@@ -50,60 +45,52 @@ StaticJsonDocument<1023> doc; // [bytes] Allocate the capacity of the memory poo
 // Set method changes states of this device
 void set(const char * payload, size_t lenght) {
   DEBUG_PRINTLN(payload);
-  int option = 2; // Choose set option
+  uint8_t option = 2; // Choose set option
   DataPacket_t data; // Initialize empty data packe which will be filled
-  deserialize(payload, &data, option); // Option 2 for "set"
-  // if (success < 0) {
-  //     Socket.emit("Error in get. Error parsing content"); // set event changes states on this device
-  //   } else {
-  //     states = data; // Sore it to global "states"
-  //   }
+  int success = deserialize(payload, &data, option, nullptr); // Option 2 for "set"
+  if (success < 0) {
+      Socket.emit("Error in set. Error parsing content"); // Send error
+    } else {
+      states = data; // Sore it to global "states"
+    }
   LAMP_update(); // Update output
 }
 
 void get(const char * payload, size_t lenght) {
   DEBUG_PRINTLN(payload);
   // Deserialize the JSON document
-  int option = 1; // Choose get option
-  // DataPacket_t data = states;
-  char* json_obj_out = deserialize(payload, &states, option); // Option 1 for "get"
-    if (false) {
-      Socket.emit("Error in get. Error parsing content"); // set event changes states on this device
+  uint8_t option = 1; // Choose get option
+  char json_obj_out[255] = "{}"; // Empty json string, to be filled by deserialize function, will be emitted later
+  int success = deserialize(payload, &states, option, json_obj_out); // Option 1 for "get"
+    if (success < 0) {
+      Socket.emit("Error in get. Error parsing content"); // Send error
     } else {
-      // any of these function causes stack overflow .. TMEP solution: emmit in deserialize function
-      // DEBUG_PRINTLN(json_obj_out);
-      //Socket.emit("response", json_obj_out); // set event changes states on this device
+      Socket.emit("get", json_obj_out); // Send the state out
     }
-
   return;
 }
 
 // ---------------- JSON -----------------------
-char* deserialize(const char * json_obj, DataPacket_t* destination, int option){
+int deserialize(const char * json_obj, DataPacket_t* destination, uint8_t option, char* json_obj_out){
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, json_obj);
   // Test if parsing succeeds.
   if (error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.c_str());
-    return "Error";
+    return -1;
   }
-  char json_obj_out[1023] ="{}"; 
-  switch(option){
+   switch(option){
     case 1: // Get option was chosen
-      // simply fill the doc with requested data
+      // simply fill the existing doc with requested data
       if (doc.containsKey("name"))  doc["name"].set(destination->name); // Tested
       if (doc.containsKey("type"))  doc["type"].set(destination->type); 
       if (doc.containsKey("on_state"))  doc["on_state"].set(destination->on_state); 
       if (doc.containsKey("brightness"))  doc["brightness"].set(destination->brightness); 
-      // json_obj = doc.to<JsonArray>(); // json_obj: {"name"}  -> {"name":"LED"} // does not work
-      // serializeJson(doc, json_obj); // Tried directly, cannot work because json_obj is actually payload and thats const 
-      DEBUG_PRINTLN("Before:");
-      DEBUG_PRINTLN(json_obj);
-      serializeJson(doc, json_obj_out);
-      DEBUG_PRINTLN("After:");
-      Serial.println(json_obj_out);
-      Socket.emit("get", json_obj_out); // set event changes states on this device
+      // serializeJson(doc, json_obj_out); // Tried directly, but does not work
+      char json_obj_tmp[255]; // shitty, i want to put the infos directly into json_obj_out
+      serializeJson(doc, json_obj_tmp);
+      strcpy(json_obj_out, json_obj_tmp);
       break;
     case 2: // Set option was chosen: Stores values of JSON into destination (i.e. states)
       // if (*_id != NULL) *id = *_id;
@@ -118,7 +105,7 @@ char* deserialize(const char * json_obj, DataPacket_t* destination, int option){
       if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["on_state"]);
       if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_brightness,doc["brightness"]);
       break;
-    return json_obj_out;
+    return 0;
   }
 }
 
@@ -175,7 +162,11 @@ void setup(void) {
     printState();
   #endif
 
-  // WiFi
+  // TEST:
+  // deserialize(json,2);
+  get(json,sizeof(json));
+
+    // WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   DEBUG_PRINTLN("");
@@ -192,16 +183,10 @@ void setup(void) {
   Socket.begin(HOST, PORT); // Connected to Device Socket using config from config.h
   // Subscriptions:
   //Socket.on("connect", sendType); // Connected to server
-  // Socket.on("event", event); // "event" from excemple can be deleted
-  Socket.on("get", get); // set event emits states of this device
+  Socket.on("get", get); // get event emits states of this device
   Socket.on("set", set); // set event changes states on this device
-  // Socket.on("setEEPROM", setEEPROM); // set event emits states of this device
+  // Socket.on("setEEPROM", setEEPROM); // writes new default states into EEPROM
   // TODO: catch unknown event
-
-
-  // TEST:
-  // deserialize(json,2);
-  get(json,sizeof(json));
 }
 
 void loop(void) {
