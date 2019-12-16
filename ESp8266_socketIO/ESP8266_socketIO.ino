@@ -267,7 +267,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   StaticJsonDocument<MAX_JSON_SIZE> doc; // [bytes] Allocate the capacity of the memory pool of th JSON document in the heap  
   if(commandBuffer == NULL) {
     // Error, we were unable to get the requested amount of memory :-(
-    Socket.emit("Error in set. Memory allocation failed."); // Send error
+    Socket.emit("error", "Error in set. Memory allocation failed."); // Send error
     return;
   }
   // Copy the payload to our buffer (using strncpy ensures we won't have a buffer overflow)
@@ -285,7 +285,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   // We intend to deserialize our JSON String to our global 'states' struct.. no need for local data packet
   int success = states->Deserialize(doc, ((const char*)&commandBuffer)); // Option 2 for "set"
   if (success < 0) {
-    Socket.emit("Error deserializing JSON string"); // Send error
+    Socket.emit("error", "Error deserializing JSON string"); // Send error
   } else {
     // Todo: we need a serialize function that is able to generate a 'emittable' JSON String from our struct 'data'
     // The following will probably not work, would have to move every single property...
@@ -294,15 +294,27 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
     // If deserialization worked, let's head to parsing our JSON document now..
     success = states->Parse(doc, option);
     if (success < 0) {
-      Socket.emit("Error parsing data"); // Send error
+      Socket.emit("error", "Error parsing data"); // Send error
     } else {
       // At this point we should have a beautiful JSON Document already containing our response
       // Serialize our response (produces JSON String)
       success = states->Serialize(doc, &commandBuffer);
       if (success < 0) {
-        Socket.emit("Error serializing JSON data"); // Send error
+        Socket.emit("error", "Error serializing JSON data"); // Send error
       } else {
-        Socket.emit(commandBuffer);
+        switch(option) {
+          case COMMAND_GET:
+            Socket.emit("get", commandBuffer);
+            break;
+          case COMMAND_SET:
+            Socket.emit("set", commandBuffer);
+            break;
+          case COMMAND_WRITE_EEPROM:
+            Socket.emit("write_eeprom", commandBuffer);
+          default:
+            Socket.emit("error", "Error: Unknown event");
+            break;
+        }
       }
     }
   }
@@ -455,7 +467,7 @@ void setup(void) {
   //Socket.on("connect", sendType); // Connected to server
   Socket.on("get", get); // get event emits states of this device
   Socket.on("set", set); // set event changes states on this device
-  Socket.on("setEEPROM", write_eeprom); // writes new default states into EEPROM
+  Socket.on("write_eeprom", write_eeprom); // writes new default states into EEPROM
   // TODO: catch unknown event
 }
 
