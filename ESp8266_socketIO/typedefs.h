@@ -1,3 +1,20 @@
+// Enums
+/*
+ * CommandOptions Enum:
+ * Defines some numeric values used to identify the type of command received.
+ * 
+ */
+enum CommandOptions {
+  // Received invalid command
+  COMMAND_INVALID = 0,
+  // Received 'get' command
+  COMMAND_GET = 1,
+  // Received 'set' command
+  COMMAND_SET = 2,
+  // Received 'setEeprom' command
+  COMMAND_WRITE_EEPROM = 3
+};
+
 // Typedefs
 typedef struct {
   char name[32];

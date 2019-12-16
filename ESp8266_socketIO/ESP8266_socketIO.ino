@@ -44,69 +44,123 @@ StaticJsonDocument<255> doc; // [bytes] Allocate the capacity of the memory pool
 
 // Set method changes states of this device
 void set(const char * payload, size_t lenght) {
-  DEBUG_PRINTLN(payload);
-  uint8_t option = 2; // Choose set option
-  DataPacket_t data; // Initialize empty data packe which will be filled
-  int success = deserialize(payload, &data, option, nullptr); // Option 2 for "set"
+  // Since our received payload may be overridden by a subsequent command, we have to store it in a fresh buffer here!
+  // First dynamically allocate 'length' bytes of memory on the stack, we have to free this memory later!
+  char* commandBuffer = (char*)malloc(length*sizeof(char));
+  if(commandBuffer == NULL) {
+    // Error, we were unable to get the requested amount of memory :-(
+    Socket.emit("Error in set. Memory allocation failed."); // Send error
+    return;
+  }
+  // Copy the payload to our buffer (using strncpy ensures we won't have a buffer overflow)
+  strncpy(commandBuffer, payload, lenght);
+  // Though we have to ensure that our string is null terminated, so we simply set the last element to '\0'
+  // (requirement of 'deserializeJson()')
+  commandBuffer[lenght-1] = '\0';
+
+  // From here on we use our 'commandBuffer' instead of 'payload', since payload is just a pointer
+  // that we are not in control of. Additionally - and for this reason - we can disregard the original 'const' qualifier
+  DEBUG_PRINTLN(commandBuffer);
+  // No need for variable here, we just want to have something human readable.. using enum
+  // uint8_t option = 2; // Choose set option
+  // DataPacket_t data; // Initialize empty data packet which will be filled
+  // We intend to deserialize our JSON String to our global 'states' struct.. no need for local data packet
+  int success = deserialize(commandBuffer/*, &states*/, COMMAND_SET, nullptr); // Option 2 for "set"
+
   if (success < 0) {
-      Socket.emit("Error in set. Error parsing content"); // Send error
-    } else {
-      states = data; // Sore it to global "states"
-    }
+    Socket.emit("Error in set. Error parsing content"); // Send error
+  } else {
+    // Todo: we need a serialize function that is able to generate a 'emittable' JSON String from our struct 'data'
+    // The following will probably not work, would have to move every single property...
+    // states = data; // Sore it to global "states"
+  }
+
+  // Free the allocated memory, we don't need it anymore (have our 'data' struct now)
+  free(commandBuffer);
+
   LAMP_update(); // Update output
 }
 
 void get(const char * payload, size_t lenght) {
-  DEBUG_PRINTLN(payload);
-  // Deserialize the JSON document
-  uint8_t option = 1; // Choose get option
+  // Since our received payload may be overridden by a subsequent command, we have to store it in a fresh buffer here!
+  // First dynamically allocate 'length' bytes of memory on the stack, we have to free this memory later!
+  char* commandBuffer = (char*)malloc(length*sizeof(char));
+  if(commandBuffer == NULL) {
+    // Error, we were unable to get the requested amount of memory :-(
+    Socket.emit("Error in set. Memory allocation failed."); // Send error
+    return;
+  }
+  // Copy the payload to our buffer (using strncpy ensures we won't have a buffer overflow)
+  strncpy(commandBuffer, payload, lenght);
+  // Though we have to ensure that our string is null terminated, so we simply set the last element to '\0'
+  // (requirement of 'deserializeJson()')
+  commandBuffer[lenght-1] = '\0';
+
+  // From here on we use our 'commandBuffer' instead of 'payload', since payload is just a pointer
+  // that we are not in control of. Additionally - and for this reason - we can disregard the original 'const' qualifier
+  DEBUG_PRINTLN(commandBuffer);
+  // No need for variable here, we just want to have something human readable.. using enum
+  // uint8_t option = 1; // Choose get option
   char json_obj_out[255] = "{}"; // Empty json string, to be filled by deserialize function, will be emitted later
-  int success = deserialize(payload, &states, option, json_obj_out); // Option 1 for "get"
-    if (success < 0) {
-      Socket.emit("Error in get. Error parsing content"); // Send error
-    } else {
-      Socket.emit("get", json_obj_out); // Send the state out
-    }
-  return;
+  // DataPacket_t data; // Initialize empty data packet which will be filled
+  int success = deserialize(payload/*, &data*/, COMMAND_GET, json_obj_out); // Option 1 for "get"
+
+  if (success < 0) {
+    Socket.emit("Error in get. Error parsing content"); // Send error
+  } else {
+    // Todo: we need a serialize function that is able to generate a 'emittable' JSON String from our struct 'data'
+    Socket.emit("get", json_obj_out); // Send the state out
+  }
+
+  // Free the allocated memory, we don't need it anymore (have our 'data' struct now)
+  free(commandBuffer);
 }
 
 // ---------------- JSON -----------------------
-int deserialize(const char * json_obj, DataPacket_t* destination, uint8_t option, char* json_obj_out){
+int deserialize(const char * json_obj/*, DataPacket_t* destination*/, uint8_t option, char* json_obj_out){
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, json_obj);
   // Test if parsing succeeds.
   if (error) {
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.c_str());
+
+    // Todo: Send error message over to backend using Socket.emit
     return -1;
   }
+  
+  // Removed indirect access to, anyways, global 'states' DataPacket.. no need for that
    switch(option){
-    case 1: // Get option was chosen
+    case COMMAND_GET: // Get option was chosen
       // simply fill the existing doc with requested data
-      if (doc.containsKey("name"))  doc["name"].set(destination->name); // Tested
-      if (doc.containsKey("type"))  doc["type"].set(destination->type); 
-      if (doc.containsKey("on_state"))  doc["on_state"].set(destination->on_state); 
-      if (doc.containsKey("brightness"))  doc["brightness"].set(destination->brightness); 
+      if (doc.containsKey("name"))  doc["name"].set(states->name); // Tested
+      if (doc.containsKey("type"))  doc["type"].set(states->type); 
+      if (doc.containsKey("on_state"))  doc["on_state"].set(states->on_state); 
+      if (doc.containsKey("brightness"))  doc["brightness"].set(states->brightness); 
       // serializeJson(doc, json_obj_out); // Tried directly, but does not work
       char json_obj_tmp[255]; // shitty, i want to put the infos directly into json_obj_out
       serializeJson(doc, json_obj_tmp);
       strcpy(json_obj_out, json_obj_tmp);
       break;
-    case 2: // Set option was chosen: Stores values of JSON into destination (i.e. states)
+    case COMMAND_SET: // Set option was chosen: Stores values of JSON into destination (i.e. states)
       // if (*_id != NULL) *id = *_id;
-      if (doc.containsKey("name")) strcpy(destination->name, doc["name"]);
-      if (doc.containsKey("type"))  strcpy(destination->type, doc["type"]);
-      if (doc.containsKey("on_state"))  destination->on_state = doc["on_state"];
-      if (doc.containsKey("brightness"))  destination->brightness = doc["brightness"];
+      if (doc.containsKey("name")) strcpy(states->name, doc["name"]);
+      if (doc.containsKey("type"))  strcpy(states->type, doc["type"]);
+      if (doc.containsKey("on_state"))  states->on_state = doc["on_state"];
+      if (doc.containsKey("brightness"))  states->brightness = doc["brightness"];
       break;
-    case 3: // EEPROM option was chosen: Stores values of JSON into EEPROM
+    case COMMAND_WRITE_EEPROM: // EEPROM option was chosen: Stores values of JSON into EEPROM
       if (doc.containsKey("name"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["name"]);
       if (doc.containsKey("type"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["type"]);
       if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["on_state"]);
       if (doc.containsKey("on_state"))  EEPROM_writeAnything(EEPROM_adr_brightness,doc["brightness"]);
       break;
-    return 0;
+    default:
+      // This should never happen!
+      // Means we received an invalid/unknown command
+      break;
   }
+  return 0;
 }
 
 void LAMP_update(){
