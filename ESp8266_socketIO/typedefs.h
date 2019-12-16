@@ -17,8 +17,8 @@ enum CommandOptions {
 
 // Typedefs
 typedef struct {
-  char name[32];
-  char type[32];
+  char *name;
+  char *type;
   bool on_state;
   int brightness;
   // uint8_t brightness; // Int has 4 byte uin8_t only 1

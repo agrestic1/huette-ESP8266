@@ -35,10 +35,10 @@
 // Our new Device class
 class DeviceData {
   private:
-    char* properties = ["name", "type", "on_state", "brightness"];
+    const char *properties[4] = new (const char*)[ "name", "type", "on_state", "brightness"];
     DataPacket_t data;
 
-    updateOutput(void) {
+    void updateOutput(void) {
 #ifdef DEFLED_BUILTIN
       if (this->data.on_state){
         analogWrite(LED_BUILTIN,PWM_RANGE-this->data.brightness); 
@@ -46,17 +46,17 @@ class DeviceData {
         analogWrite(LED_BUILTIN,PWM_RANGE); 
       }
 #else
-      if (states.on_state){
+      if (states->on_state){
         analogWrite(PWM_PIN,this->data.brightness); 
       } else {
         analogWrite(PWM_PIN,0); 
       }
 #endif
       DEBUG_PRINT("Brightness changed to ");
-      DEBUG_PRINTLN(states.brightness);
+      DEBUG_PRINTLN(this->data.brightness);
     };
 
-    setName(JsonVariant value) {
+    bool setName(JsonVariant value) {
       // See API note regarding '.containsKey()': https://arduinojson.org/v6/api/jsonobject/containskey/
       if(!value.isNull()) {
         const char* name = value.as<const char*>();
@@ -67,10 +67,13 @@ class DeviceData {
         this->data.name = (char*)realloc(this->data.name, length * sizeof(char));
         // Copy received 'name' to private member 'name'
         strcpy(this->data.name, name);
+        return true;
       }
+
+      return false;
     };
 
-    setType(JsonVariant value) {
+    bool setType(JsonVariant value) {
       // See API note regarding '.containsKey()': https://arduinojson.org/v6/api/jsonobject/containskey/
       if(!value.isNull()) {
         const char* type = value.as<const char*>();
@@ -81,40 +84,49 @@ class DeviceData {
         this->data.type = (char*)realloc(this->data.type, length * sizeof(char));
         // Copy received 'name' to private member 'type'
         strcpy(this->data.type, type);
+        return true;
       }
+
+      return false;
     };
 
-    setOnState(JsonVariant value) {
+    bool setOnState(JsonVariant value) {
       // See API note regarding '.containsKey()': https://arduinojson.org/v6/api/jsonobject/containskey/
       if(!value.isNull()) {
         bool state = value.as<bool>();
         this->data.on_state = state;
         updateOutput();
+        return true;
       }
+
+      return false;
     };
 
-    setBrightness(JsonVariant value) {
+    bool setBrightness(JsonVariant value) {
       // See API note regarding '.containsKey()': https://arduinojson.org/v6/api/jsonobject/containskey/
       if(!value.isNull()) {
         int level = value.as<int>();
         this->data.brightness = level;
         updateOutput();
+        return true;
       }
+
+      return false;
     };
 
-    storeName(void) {
+    void storeName(void) {
       EEPROM_writeAnything(EEPROM_adr_name, this->data.name);
     }
 
-    storeType(void) {
+    void storeType(void) {
       EEPROM_writeAnything(EEPROM_adr_type, this->data.type);
     }
 
-    storeOnState(void) {
+    void storeOnState(void) {
       EEPROM_writeAnything(EEPROM_adr_on_state, this->data.on_state);
     }
 
-    storeBrightness(void) {
+    void storeBrightness(void) {
       EEPROM_writeAnything(EEPROM_adr_brightness, this->data.brightness);
     }
 
@@ -133,9 +145,9 @@ class DeviceData {
       updateOutput();
     };
 
-    int Deserialize(StaticJsonDocument **doc, const char **jsonString) {
+    int Deserialize(JsonDocument& doc, const char *jsonString) {
       // Deserialize the JSON string (remember doc is only MAX_JSON_SIZE bytes wide, so pass 'inputSize' also)
-      DeserializationError error = deserializeJson(*doc, *jsonString, MAX_JSON_SIZE);
+      DeserializationError error = deserializeJson(doc, jsonString, (size_t)MAX_JSON_SIZE);
       // Test if parsing succeeds.
       if (error) {
         Serial.print(F("deserializeJson() failed: "));
@@ -150,7 +162,7 @@ class DeviceData {
       }
     };
 
-    int Parse(StaticJsonDocument **doc, CommandOptions command) {
+    int Parse(JsonDocument& doc, CommandOptions command) {
       // Automatically decide on the count of properties actually available (It's 4, but might change in the future)
       // sizeof(properties[0]) should be the count of bytes of the largest member of properties
       bool changed[sizeof(properties)/sizeof(properties[0])];
@@ -161,13 +173,13 @@ class DeviceData {
         // keep track if a property was actually given or not
         // This is simply to avoid parsing the properties all over again for the next step...
         // Using postincrement means: first read value, then increment
-        changed[changedIt++] = this->setName(*doc["name"].as<JsonVariant>());
-        changed[changedIt++] = this->setType(*doc["type"].as<JsonVariant>());
-        changed[changedIt++] = this->setOnState(*doc["on_state"].as<JsonVariant>());
-        changed[changedIt] = this->setBrightness(*doc["brightness"].as<JsonVariant>());
+        changed[changedIt++] = this->setName(doc["name"].as<JsonVariant>());
+        changed[changedIt++] = this->setType(doc["type"].as<JsonVariant>());
+        changed[changedIt++] = this->setOnState(doc["on_state"].as<JsonVariant>());
+        changed[changedIt] = this->setBrightness(doc["brightness"].as<JsonVariant>());
       }
 
-      if(command == COMMAND_EEPROM) {
+      if(command == COMMAND_WRITE_EEPROM) {
         // is higher than COMMAND_GET so they are already locally available
         changedIt = 0;
         // Do that incrementing stuff again
@@ -181,24 +193,24 @@ class DeviceData {
 
       // COMMAND_GET is always implied, we send back the actual state of our device
       // Note the reverse order of 'changedIt'
-      if(changed[changedIt--]) *doc["brightness"].set(this->data.brightness);
-      if(changed[changedIt--]) *doc["on_state"].set(this->data.on_state);
-      if(changed[changedIt--]) *doc["type"].set(this->data.type);
-      if(changed[changedIt]) *doc["name"].set(this->data.name);
+      if(changed[changedIt--]) doc["brightness"].set(this->data.brightness);
+      if(changed[changedIt--]) doc["on_state"].set(this->data.on_state);
+      if(changed[changedIt--]) doc["type"].set(this->data.type);
+      if(changed[changedIt]) doc["name"].set(this->data.name);
 
       return 0;
     };
 
-    int Serialize(StaticJsonDocument **doc, const char **jsonString) {
+    int Serialize(const JsonDocument& doc, char **jsonString) {
       // Computes the length of the minified JSON document that serializeJson() produces, excluding the null-terminator.
       // But we also want null termination so: + 1
-      size_t len = measureJson(*doc) + 1;
+      size_t len = measureJson(doc) + 1;
       // Reallocate memory for our JSON string buffer
-      jsonString = (char*)realloc(jsonString, len * sizeof(char));
+      *jsonString = (char*)realloc(jsonString, len * sizeof(char));
       // Serialize the JSON document
-      int bytes = serializeJson(*doc, *jsonString, len);
+      size_t count = serializeJson(doc, *jsonString, len);
       // Test if parsing succeeds.
-      if (bytes == 0) {
+      if (count == 0) {
         Serial.print(F("serializeJson() failed: "));
         Serial.println("No bytes written");
 
@@ -220,7 +232,7 @@ class DeviceData {
 };
 
 // global singleton instance of our Device
-DeviceData states;
+DeviceData *states;
 SocketIoClient Socket;
 
 // JSON
@@ -262,7 +274,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   strncpy(commandBuffer, payload, length);
   // Though we have to ensure that our string is null terminated, so we simply set the last element to '\0'
   // (requirement of 'deserializeJson()')
-  commandBuffer[lenght-1] = '\0';
+  commandBuffer[length-1] = '\0';
 
   // From here on we use our 'commandBuffer' instead of 'payload', since payload is just a pointer
   // that we are not in control of. Additionally - and for this reason - we can disregard the original 'const' qualifier
@@ -271,7 +283,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
   // uint8_t option = 2; // Choose set option
   // DataPacket_t data; // Initialize empty data packet which will be filled
   // We intend to deserialize our JSON String to our global 'states' struct.. no need for local data packet
-  int success = states.Deserialize(&doc, &commandBuffer); // Option 2 for "set"
+  int success = states->Deserialize(doc, ((const char*)&commandBuffer)); // Option 2 for "set"
   if (success < 0) {
     Socket.emit("Error deserializing JSON string"); // Send error
   } else {
@@ -280,13 +292,13 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
     // states = data; // Sore it to global "states"
 
     // If deserialization worked, let's head to parsing our JSON document now..
-    success = states.Parse(&doc, option);
+    success = states->Parse(doc, option);
     if (success < 0) {
       Socket.emit("Error parsing data"); // Send error
     } else {
       // At this point we should have a beautiful JSON Document already containing our response
       // Serialize our response (produces JSON String)
-      success = states.Serialize(&doc, &commandBuffer);
+      success = states->Serialize(doc, &commandBuffer);
       if (success < 0) {
         Socket.emit("Error serializing JSON data"); // Send error
       } else {
@@ -354,10 +366,10 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
 //    switch(option){
 //     case COMMAND_GET: // Get option was chosen
 //       // simply fill the existing doc with requested data
-//       if (doc.containsKey("name"))  doc["name"].set(states.getName()); // Tested
-//       if (doc.containsKey("type"))  doc["type"].set(states.getType()); 
-//       if (doc.containsKey("on_state"))  doc["on_state"].set(states.getOnState()); 
-//       if (doc.containsKey("brightness"))  doc["brightness"].set(states.getBrightness()); 
+//       if (doc.containsKey("name"))  doc["name"].set(states->getName()); // Tested
+//       if (doc.containsKey("type"))  doc["type"].set(states->getType()); 
+//       if (doc.containsKey("on_state"))  doc["on_state"].set(states->getOnState()); 
+//       if (doc.containsKey("brightness"))  doc["brightness"].set(states->getBrightness()); 
 //       // serializeJson(doc, json_obj_out); // Tried directly, but does not work
 //       char json_obj_tmp[255]; // shitty, i want to put the infos directly into json_obj_out
 //       serializeJson(doc, json_obj_tmp);
@@ -365,10 +377,10 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
 //       break;
 //     case COMMAND_SET: // Set option was chosen: Stores values of JSON into destination (i.e. states)
 //       // if (*_id != NULL) *id = *_id;
-//       if (doc.containsKey("name")) states.setName(doc["name"]);
-//       if (doc.containsKey("type"))  states.setType(doc["type"]);
-//       if (doc.containsKey("on_state"))  states.setOnState(doc["on_state"];
-//       if (doc.containsKey("brightness"))  states.setBrightness(doc["brightness"];
+//       if (doc.containsKey("name")) states->setName(doc["name"]);
+//       if (doc.containsKey("type"))  states->setType(doc["type"]);
+//       if (doc.containsKey("on_state"))  states->setOnState(doc["on_state"];
+//       if (doc.containsKey("brightness"))  states->setBrightness(doc["brightness"];
 //       break;
 //     case COMMAND_WRITE_EEPROM: // EEPROM option was chosen: Stores values of JSON into EEPROM
 //       if (doc.containsKey("name"))  EEPROM_writeAnything(EEPROM_adr_on_state,doc["name"]);
@@ -386,7 +398,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
 
 // ----------------- DEBUG -------------------
 void printState(){
-  states.print();
+  states->print();
 }
 
 // --------------- SETUP -----------------
