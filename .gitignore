@@ -1,6 +1,7 @@
 ESP8266_WebSocket/privates.h
 BasicExample/BasicExample.ino
 ESp8266_socketIO/privates.h
+ESp8266_socketIO/config.h
 CH341PT.DLL
 CH341S64.SYS
 CH341S98.SYS

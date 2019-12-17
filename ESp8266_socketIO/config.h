@@ -1,6 +1,6 @@
 // Webserver
 #define HOST "192.168.178.26" // Webservers IP
-#define PORT 8081 // Webservers Port to Device Socket
+#define PORT 8030 // Webservers Port to Device Socket
 
 // Output
 #define DEFLED_BUILTIN // Route PWM to LED_BUILTIN instead PWM_PIN

@@ -260,6 +260,11 @@ void write_eeprom(const char * payload, size_t length) {
   handleCommand(payload, length, COMMAND_WRITE_EEPROM);
 }
 
+void disconnect(const char * payload, size_t length) {
+  DEBUG_PRINTLN("Connection lost, reconnecting..");
+  Socket.begin(HOST, PORT);
+}
+
 // handleCommand takes care of set, get, and eeprom_write commands now
 void handleCommand(const char * payload, size_t length, CommandOptions option) {
   // Since our received payload may be overridden by a subsequent command, we have to store it in a fresh buffer here!
@@ -358,11 +363,11 @@ void setupWifi() {
   DEBUG_PRINTLN("Starting WiFi init");
   while (WiFi.status() != WL_CONNECTED) {  // Wait for connection
     delay(500);
-    DEBUG_PRINT("Waiting for connection..");
+    DEBUG_PRINT("Waiting for connection.. ");
   }
-  DEBUG_PRINT("Connected to ");
+  DEBUG_PRINTLN("Connected to ");
   DEBUG_PRINTLN(ssid);
-  DEBUG_PRINT("IP address: ");
+  DEBUG_PRINTLN("IP address: ");
   DEBUG_PRINTLN(WiFi.localIP());
 }
 
@@ -382,6 +387,7 @@ void setup(void) {
   Socket.on("set", set); // set selected properties on this device
   Socket.on("publish", publish); // publish all properties 
   Socket.on("write_eeprom", write_eeprom); // writes selected properties to EEPROM as default settings
+  Socket.on("disconnect", disconnect);
 
 }
 
