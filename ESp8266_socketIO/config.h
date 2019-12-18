@@ -1,5 +1,5 @@
 // Webserver
-#define HOST "192.168.178.26" // Webservers IP
+#define HOST "192.168.188.148" // Webservers IP
 #define PORT 8030 // Webservers Port to Device Socket
 
 // Output

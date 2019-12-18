@@ -9,10 +9,12 @@ enum CommandOptions {
   COMMAND_INVALID = 0,
   // Received 'get' command
   COMMAND_GET = 1,
+  // Received 'publish' command
+  COMMAND_PUBLISH = 2,
   // Received 'set' command
-  COMMAND_SET = 2,
+  COMMAND_SET = 3,
   // Received 'setEeprom' command
-  COMMAND_WRITE_EEPROM = 3
+  COMMAND_WRITE_EEPROM = 4
 };
 
 // Typedefs

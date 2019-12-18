@@ -25,15 +25,19 @@
     #endif 
 #endif
 
-#define MAX_JSON_SIZE 1024
+#define   MAX_JSON_SIZE   1024
+// #define   PROPERTY_COUNT  sizeof(properties)/sizeof(properties[0])    // Automatically decide on the count of properties actually available (It's 4, but might change in the future)
+                                                                      // sizeof(properties[0]) should be the count of bytes of the largest member of properties
 
 // #define SETUP // Writes content of json[] into EEPROM (Flashing does not wipe EEPROM)
 // char json[] = "{\"name\":\"Warmweiss LED Innen2\",\"type\":\"Light\",\"on_state\":true,\"brightness\":10}"; // Excemple
 
+    const char *properties[4] = { "name", "type", "on_state", "brightness" };
+
 // Our new Device class
 class DeviceData {
   private:
-    const char *properties[4] = { "name", "type", "on_state", "brightness" };
+
     DataPacket_t data;
 
     void updateOutput(void) {
@@ -134,7 +138,7 @@ class DeviceData {
       // No name
       this->data.name = (char*)calloc(1, sizeof(char));
       // No type
-      this->data.type = (char*)calloc(1, sizeof(char));
+      this->data.type = "Light";
       // Default OFF
       this->data.on_state = false;
       // 50% Brightness
@@ -169,13 +173,12 @@ class DeviceData {
     };
 
     int Parse(JsonDocument& doc, CommandOptions command) {
-      // Automatically decide on the count of properties actually available (It's 4, but might change in the future)
-      // sizeof(properties[0]) should be the count of bytes of the largest member of properties
+      
       bool changed[sizeof(properties)/sizeof(properties[0])];
       int changedIt = 0;
 
-      if(command > COMMAND_GET) {
-        // Always implies set of internal properties if > COMMAND_GET
+      if(command > COMMAND_PUBLISH) {
+        // Always implies set of internal properties if > COMMAND_PUBLISH
         // keep track if a property was actually given or not
         // This is simply to avoid parsing the properties all over again for the next step...
         // Using postincrement means: first read value, then increment
@@ -253,7 +256,38 @@ void set(const char * payload, size_t length) {
 
 void publish(const char* payload, size_t length) {
   // Todo: build JSON string from current setup and emit over socket
-  Socket.emit("publish", "{\"name\": \"LED innen\", \"type\": \"Light\"}");
+  // Socket.emit("publish", "{\"name\": \"LED innen\", \"type\": \"Light\"}");
+
+  // To publish all our 'states', we do the same as for a 'get' command for ALL properties:
+
+  size_t size = 3;
+  // Prepare our jsonString to hold the first 2 characters including '\0' null terminator
+  char *jsonString = (char*)malloc(size);
+  strcpy(jsonString, "{\"\0");
+
+  // Now we start adding our properties
+  // Lets do this dynamically
+  for(int i = 0; i < sizeof(properties)/sizeof(properties[0]); i++) {
+    // We don't have to add +1 for the null terminator as this is taken care of already
+    size += strlen(properties[i]);
+    // Reallocate memory for 'jsonString' adding space for next property plus 5 additional characters (":0,")
+    jsonString = (char*)realloc(jsonString, size + 5);
+    // copy next property to end of 'jsonString'
+    strcat(jsonString, properties[i]);
+    // Add 5 filling characters plus '\0' null terminator
+    strcat(jsonString, "\":0,\"\0");
+    // Of course we have to add this to our size as well
+    size += 5;
+  }
+  // Once finished we have to override the last two characters
+  char* c_ptr = (jsonString + (strlen(jsonString) - 2));
+  // Add last 2 characters plus '\0' null terminator
+  strcpy(c_ptr, "}\"\0");
+
+  DEBUG_PRINTLN(jsonString);
+
+  // Now call the handler requesting 'publish' response
+  handleCommand((const char*)jsonString, size, COMMAND_PUBLISH);
 }
 
 void write_eeprom(const char * payload, size_t length) {
@@ -309,6 +343,9 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
         switch(option) {
           case COMMAND_GET:
             Socket.emit("get", commandBuffer);
+            break;
+          case COMMAND_PUBLISH:
+            Socket.emit("publish", commandBuffer);
             break;
           case COMMAND_SET:
             Socket.emit("set", commandBuffer);
