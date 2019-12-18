@@ -136,7 +136,7 @@ class DeviceData {
     DeviceData() {
       // Allocate 1 character for strings and initialize to zero ('\0')
       // No name
-      this->data.name = (char*)calloc(1, sizeof(char));
+      this->data.name = "Dimmable Light";
       // No type
       this->data.type = "Light";
       // Default OFF
