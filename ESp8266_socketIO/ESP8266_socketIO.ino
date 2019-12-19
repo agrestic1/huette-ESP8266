@@ -4,7 +4,7 @@
 #include <SocketIoClient.h> // requires SocketIoCleint package by Vincent Wyszynski and also WebSockets Package by Markus Sattler
 
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
-#include "config.h" // Configuration file, must be adjusted
+#include "privates.h" // conrains privat info like Socket Server Address, WiFi SSID and PW, must be adjusted
 #include "deviceData.hpp"
 
 SocketIoClient Socket;
