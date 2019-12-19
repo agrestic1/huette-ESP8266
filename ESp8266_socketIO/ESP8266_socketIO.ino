@@ -2,7 +2,6 @@
 #include <WiFiClient.h>
 //#include <ESP8266WebServer.h>
 #include <SocketIoClient.h> // requires SocketIoCleint package by Vincent Wyszynski and also WebSockets Package by Markus Sattler
-
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
 #include "privates.h" // conrains privat info like Socket Server Address, WiFi SSID and PW, must be adjusted
 #include "deviceData.hpp"
@@ -171,13 +170,7 @@ void setupWifi() {
   DEBUG_PRINTLN(WiFi.localIP());
 }
 
-
-// --------------- SETUP -----------------
-void setup(void) {
-  setupSerial();
-  setupPeripherals();
-  setupWifi();
-
+void setupSocket(){
   // Socket
   Socket.begin(HOST, PORT); // Connected to Device Socket using config from config.h
   // Subscriptions:
@@ -186,7 +179,16 @@ void setup(void) {
   Socket.on("publish", publish); // publish all properties 
   Socket.on("write_eeprom", write_eeprom); // writes selected properties to EEPROM as default settings
   Socket.on("disconnect", disconnect);
+}
 
+// --------------- SETUP -----------------
+void setup(void) {
+  states = new DeviceData(); 
+
+  setupSerial();
+  setupPeripherals();
+  setupWifi();
+  setupSocket();
 }
 
 void loop(void) {
