@@ -183,8 +183,6 @@ void setupSocket(){
 
 // --------------- SETUP -----------------
 void setup(void) {
-  states = new DeviceData(); 
-
   setupSerial();
   setupPeripherals();
   setupWifi();
