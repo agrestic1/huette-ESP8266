@@ -1,8 +1,15 @@
+#ifndef CONFIG_H /* START GUARD */
+#define CONFIG_H
+
+#include "privates.h" // conrains privat info like WiFi SSID and PW, must be adjusted
+// content of privates.h:
+// const char* ssid = "yourSSID";
+// const char* password = "yourPW";
+
+
 // Webserver
 #define HOST "192.168.188.148" // Webservers IP
+// #define HOST "192.168.178.26" // Webservers IP
 #define PORT 8030 // Webservers Port to Device Socket
 
-// Output
-#define DEFLED_BUILTIN // Route PWM to LED_BUILTIN instead PWM_PIN
-#define PWM_RANGE 100 // range for analogwrite
-#define PWM_PIN 13 // Pin to Output, ATTENTION: not used ifdef DEFLED_BUILTIN
+#endif
