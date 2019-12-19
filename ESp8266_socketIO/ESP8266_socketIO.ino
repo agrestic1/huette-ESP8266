@@ -48,7 +48,7 @@ class DeviceData {
         analogWrite(LED_BUILTIN,PWM_RANGE); 
       }
 #else
-      if (states->on_state){
+      if (this->data.on_state){
         analogWrite(PWM_PIN,this->data.brightness); 
       } else {
         analogWrite(PWM_PIN,0); 
@@ -408,15 +408,7 @@ void setupWifi() {
   DEBUG_PRINTLN(WiFi.localIP());
 }
 
-
-// --------------- SETUP -----------------
-void setup(void) {
-  states = new DeviceData();
-
-  setupSerial();
-  setupPeripherals();
-  setupWifi();
-
+void setupSocket(){
   // Socket
   Socket.begin(HOST, PORT); // Connected to Device Socket using config from config.h
   // Subscriptions:
@@ -425,7 +417,16 @@ void setup(void) {
   Socket.on("publish", publish); // publish all properties 
   Socket.on("write_eeprom", write_eeprom); // writes selected properties to EEPROM as default settings
   Socket.on("disconnect", disconnect);
+}
 
+// --------------- SETUP -----------------
+void setup(void) {
+  states = new DeviceData(); 
+
+  setupSerial();
+  setupPeripherals();
+  setupWifi();
+  setupSocket();
 }
 
 void loop(void) {
