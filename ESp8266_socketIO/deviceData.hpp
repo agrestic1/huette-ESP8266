@@ -6,7 +6,7 @@
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
 #include "storage.hpp"
 
-#define MAX_JSON_SIZE 1024
+#define MAX_JSON_SIZE 512
 #define PROPERTY_COUNT sizeof(properties) / sizeof(properties[0]) // Automatically decide on the count of properties actually available (It's 4, but might change in the future) \
                                                                   // sizeof(properties[0]) should be the count of bytes of the largest member of propertie
 

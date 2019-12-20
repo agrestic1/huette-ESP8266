@@ -2,11 +2,41 @@
 #include <WiFiClient.h>
 //#include <ESP8266WebServer.h>
 #include <SocketIoClient.h> // requires SocketIoCleint package by Vincent Wyszynski and also WebSockets Package by Markus Sattler
+#include <float.h>
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
 #include "privates.h" // conrains privat info like Socket Server Address, WiFi SSID and PW, must be adjusted
 #include "deviceData.hpp"
 
 SocketIoClient Socket;
+
+void dhcpTimeout(void) {
+  DEBUG_PRINTLN("Connection lost: DHCP Timeout");
+}
+
+char* insertStats(char *jsonString) {
+  /**
+   * RSSI is a percentage in the range -120db to 0db.
+   * The closer to 0 the better.
+   */
+  float rssi = WiFi.RSSI();
+  rssi = (1.0 - (rssi / -120.0)) * 100;
+  // print the float to string using a precision of 10^-1
+  char rssiStr[16];
+  snprintf(rssiStr, 16, ",\"rssi\":%.1f}\0", rssi);
+  // be sure to have null termination
+  rssiStr[15] = '\0';
+  
+  // The C library function size_t strlen(const char *str) computes the length of the string str up to, but not including the terminating null character.
+  // We have null terminator on our rssi string
+  size_t len = strlen(jsonString);
+  // Reallocate memory for our JSON string buffer
+  jsonString = (char*)realloc(jsonString, (strlen(jsonString) + 1 + 16) * sizeof(char));
+  // Now append the rssi string
+  jsonString[len-1] = '\0';
+  strncat(jsonString, rssiStr, 16);
+
+  return jsonString;
+}
 
 void get(const char * payload, size_t length) {
   handleCommand(payload, length, COMMAND_GET);
@@ -23,7 +53,7 @@ void publish(const char* payload, size_t length) {
   // To publish all our properties, we do the same as for a 'get' command for ALL properties:
 
   size_t size = 3;
-  // Prepare our jsonString to hold the first 2 characters including '\0' null terminator
+  // Prepare our jsonString to hold the first 3 characters including '\0' null terminator
   char *jsonString = (char*)malloc(size);
   strcpy(jsonString, "{\"\0");
 
@@ -41,12 +71,10 @@ void publish(const char* payload, size_t length) {
     // Of course we have to add this to our size as well
     size += 5;
   }
-  // Once finished we have to override the last two characters
+  // Once finished we have to override the last 2 characters
   char* c_ptr = (jsonString + (strlen(jsonString) - 2));
   // Add last 2 characters plus '\0' null terminator
-  strcpy(c_ptr, "}\"\0");
-
-  DEBUG_PRINTLN(jsonString);
+  strcpy(c_ptr, "}\0");
 
   // Now call the handler requesting 'publish' response
   handleCommand((const char*)jsonString, size, COMMAND_PUBLISH);
@@ -81,7 +109,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
 
   // From here on we use our 'commandBuffer' instead of 'payload', since payload is just a pointer
   // that we are not in control of. Additionally - and for this reason - we can disregard the original 'const' qualifier
-  DEBUG_PRINTLN(commandBuffer);
+
   // Attempt to deserialize received JSON string
   int success = Device.Deserialize(doc, (const char*)commandBuffer); // Option 2 for "set"
   if (success < 0) {
@@ -101,12 +129,17 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
       if (success < 0) {
         Socket.emit("error", "{Error serializing JSON data.}"); // Send error
       } else {
+        DEBUG_PRINTLN(commandBuffer);
         DEBUG_PRINTLN("Serialization succeeded");
         switch(option) {
           case COMMAND_GET:
+            // Add some stats to get and publish packets data packet (RSSI etc.)
+            commandBuffer = insertStats(commandBuffer);
             Socket.emit("get", commandBuffer);
             break;
           case COMMAND_PUBLISH:
+            // Add some stats to get and publish packets data packet (RSSI etc.)
+            commandBuffer = insertStats(commandBuffer);
             Socket.emit("publish", commandBuffer);
             break;
           case COMMAND_SET:
@@ -159,11 +192,15 @@ void setupWifi() {
   // WiFi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+
   DEBUG_PRINTLN("Starting WiFi init");
   while (WiFi.status() != WL_CONNECTED) {  // Wait for connection
     delay(500);
     DEBUG_PRINT("Waiting for connection.. ");
   }
+
+  // WiFi.printDiag(Serial);
+
   DEBUG_PRINTLN("Connected to ");
   DEBUG_PRINTLN(ssid);
   DEBUG_PRINTLN("IP address: ");
@@ -186,6 +223,7 @@ void setup(void) {
   setupSerial();
   setupPeripherals();
   setupWifi();
+
   setupSocket();
 }
 
