@@ -4,14 +4,20 @@ const char *properties[4] = {"name", "type", "on_state", "brightness"};
 
 DeviceData::DeviceData()
 {
+    Serial.begin(115200);
     this->resetType();
 
-    if (this->data.type != "Light")
+    if (strcmp(this->data.type, "Light") != 0)
     {
         strncpy(this->data.type, DEFAULT_DEVICE_TYPE, MAX_STRING_SIZE);
         strncpy(this->data.name, DEFAULT_DEVICE_NAME, MAX_STRING_SIZE);
         this->data.on_state = DEFAULT_DEVICE_ON_STATE;
         this->data.brightness = DEFAULT_DEVICE_BRIGHTNESS;
+
+        this->storeType();
+        this->storeName();
+        this->storeOnState();
+        this->storeBrightness();
     }
     else
     {

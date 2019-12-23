@@ -4,8 +4,9 @@
 #include <SocketIoClient.h> // requires SocketIoCleint package by Vincent Wyszynski and also WebSockets Package by Markus Sattler
 #include <float.h>
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
-#include "privates.h" // conrains privat info like Socket Server Address, WiFi SSID and PW, must be adjusted
 #include "deviceData.hpp"
+#include "privates.h" // conrains privat info like Socket Server Address, WiFi SSID and PW, must be adjusted
+
 
 SocketIoClient Socket;
 
@@ -147,6 +148,7 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
             break;
           case COMMAND_WRITE_EEPROM:
             Socket.emit("write_eeprom", commandBuffer);
+            break;
           default:
             Socket.emit("error", "{Error: Unknown event.}");
             break;
@@ -224,7 +226,7 @@ void setup(void) {
   setupPeripherals();
   setupWifi();
 
-  setupSocket();
+  setupSocket();    
 }
 
 void loop(void) {

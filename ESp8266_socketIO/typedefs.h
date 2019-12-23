@@ -29,9 +29,9 @@
 /**
  * Settings for PWM Output
  */
-#define DEFLED_BUILTIN // Route PWM to LED_BUILTIN instead PWM_PIN
+#define PWM_PIN // Route PWM to LED_BUILTIN instead PWM_PIN
 #define PWM_RANGE 100  // range for analogwrite
-#define PWM_PIN 13     // Pin to Output, ATTENTION: not used ifdef DEFLED_BUILTIN
+#define PWM_PIN 14     // Pin to Output, ATTENTION: not used ifdef DEFLED_BUILTIN
 
 /**
  * Maximum size of any string within device properties

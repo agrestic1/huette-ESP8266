@@ -1,6 +1,7 @@
 #ifndef DEVICEDATA_H /* START GUARD */
 #define DEVICEDATA_H
 
+#include <Arduino.h>
 #include <ArduinoJson.h> // requires ArduinoJson package by Benoit Blanchon
 #include <string.h>
 #include "typedefs.h" // Has to be loaded before storrage_service.h, it's used there
