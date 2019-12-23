@@ -52,10 +52,12 @@ enum CommandOptions
   COMMAND_GET = 1,
   // Received 'publish' command
   COMMAND_PUBLISH = 2,
+  // Received 'getEEPROM' command
+  COMMAND_READ_EEPROM = 3,
   // Received 'set' command
-  COMMAND_SET = 3,
+  COMMAND_SET = 4,
   // Received 'setEeprom' command
-  COMMAND_WRITE_EEPROM = 4
+  COMMAND_WRITE_EEPROM = 5
 };
 
 /**

@@ -58,9 +58,9 @@ int DeviceData::Parse(JsonDocument &doc, CommandOptions command)
     bool changed[PROPERTY_COUNT];
     int changedIt = 0;
 
-    if (command > COMMAND_PUBLISH)
+    if (command > COMMAND_READ_EEPROM)
     {
-        // Always implies set of internal properties if > COMMAND_PUBLISH
+        // Always implies set of internal properties if > COMMAND_READ_EEPROM
         // keep track if a property was actually given or not
         // This is simply to avoid parsing the properties all over again for the next step...
         // Using postincrement means: first read value, then increment
@@ -70,15 +70,31 @@ int DeviceData::Parse(JsonDocument &doc, CommandOptions command)
         changed[changedIt] = this->setBrightness(doc["brightness"].as<JsonVariant>());
     }
 
-    if (command == COMMAND_WRITE_EEPROM)
+    if (command == COMMAND_READ_EEPROM)
+    {
+        // Read all available eeprom values to their locals
+        changedIt = 0;
+        // Do that incrementing stuff again
+            this->resetName();
+            changed[changedIt++] = true;
+            // Type is not changeable
+            // this->resetType();
+            changed[changedIt++] = false;
+            this->resetOnState();
+            changed[changedIt++] = true;
+            this->resetBrightness();
+            changed[changedIt] = true;
+    } else if (command == COMMAND_WRITE_EEPROM)
     {
         // is higher than COMMAND_GET so they are already locally available
         changedIt = 0;
         // Do that incrementing stuff again
         if (changed[changedIt++])
             this->storeName();
-        if (changed[changedIt++])
-            this->storeType();
+            changedIt++;
+        // if (changed[changedIt++])
+            // Type is not changeable
+            // this->storeType();
         if (changed[changedIt++])
             this->storeOnState();
         if (changed[changedIt])

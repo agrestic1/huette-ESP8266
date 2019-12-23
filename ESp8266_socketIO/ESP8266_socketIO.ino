@@ -85,6 +85,10 @@ void write_eeprom(const char * payload, size_t length) {
   handleCommand(payload, length, COMMAND_WRITE_EEPROM);
 }
 
+void read_eeprom(const char * payload, size_t length) {
+  handleCommand(payload, length, COMMAND_READ_EEPROM);
+}
+
 void disconnect(const char * payload, size_t length) {
   DEBUG_PRINTLN("Connection lost, reconnecting..");
   Socket.begin(HOST, PORT);
@@ -142,6 +146,9 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
             // Add some stats to get and publish packets data packet (RSSI etc.)
             commandBuffer = insertStats(commandBuffer);
             Socket.emit("publish", commandBuffer);
+            break;
+          case COMMAND_READ_EEPROM:
+            Socket.emit("read_eeprom", commandBuffer);
             break;
           case COMMAND_SET:
             Socket.emit("set", commandBuffer);
@@ -217,6 +224,7 @@ void setupSocket(){
   Socket.on("set", set); // set selected properties on this device
   Socket.on("publish", publish); // publish all properties 
   Socket.on("write_eeprom", write_eeprom); // writes selected properties to EEPROM as default settings
+  Socket.on("read_eeprom", read_eeprom); // rea-ds selected properties to EEPROM as default settings
   Socket.on("disconnect", disconnect);
 }
 
