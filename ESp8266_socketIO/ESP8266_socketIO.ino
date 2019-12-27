@@ -31,7 +31,7 @@ char* insertStats(char *jsonString) {
   // We have null terminator on our rssi string
   size_t len = strlen(jsonString);
   // Reallocate memory for our JSON string buffer
-  jsonString = (char*)realloc(jsonString, (strlen(jsonString) + 1 + 16) * sizeof(char));
+  jsonString = (char*)realloc(jsonString, (strlen(jsonString) + 2 + 16) * sizeof(char));
   // Now append the rssi string
   jsonString[len-1] = '\0';
   strncat(jsonString, rssiStr, 16);
@@ -64,9 +64,9 @@ void publish(const char* payload, size_t length) {
     // We don't have to add +1 for the null terminator as this is taken care of already
     size += strlen(properties[i]);
     // Reallocate memory for 'jsonString' adding space for next property plus 5 additional characters (":0,")
-    jsonString = (char*)realloc(jsonString, size + 5);
+    jsonString = (char*)realloc(jsonString, size + 6);
     // copy next property to end of 'jsonString'
-    strcat(jsonString, properties[i]);
+    strncat(jsonString, properties[i], size);
     // Add 5 filling characters plus '\0' null terminator
     strcat(jsonString, "\":0,\"\0");
     // Of course we have to add this to our size as well
@@ -139,12 +139,12 @@ void handleCommand(const char * payload, size_t length, CommandOptions option) {
         switch(option) {
           case COMMAND_GET:
             // Add some stats to get and publish packets data packet (RSSI etc.)
-            commandBuffer = insertStats(commandBuffer);
+            // commandBuffer = insertStats(commandBuffer);
             Socket.emit("get", commandBuffer);
             break;
           case COMMAND_PUBLISH:
             // Add some stats to get and publish packets data packet (RSSI etc.)
-            commandBuffer = insertStats(commandBuffer);
+            // commandBuffer = insertStats(commandBuffer);
             Socket.emit("publish", commandBuffer);
             break;
           case COMMAND_READ_EEPROM:
